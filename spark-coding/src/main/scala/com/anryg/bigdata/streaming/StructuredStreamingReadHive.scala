@@ -8,9 +8,9 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 /**
-  * @DESC:  从kafka读取上网数据,写入hive动态分区表
+  * @DESC:  读取通过streaming写入hive动态分区表的数据
   * @Auther: Anryg
-  * @Date: 2020/12/17 09:56
+  * @Date: 2022/08/31 09:56
   */
 object StructuredStreamingReadHive {
 

@@ -22,7 +22,6 @@ object StructuredStreamingFromKafka2Hive {
         val spark = SparkSession.builder().config(conf)
                 .config("spark.sql.hive.hiveserver2.jdbc.url","jdbc:hive2://hdp01.pcl-test.com:2181,hdp03.pcl-test.com:2181,hdp02.pcl-test.com:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2")
                 .config("spark.datasource.hive.warehouse.metastoreUri","thrift://hdp01.pcl-test.com:9083")
-                .config("spark.sql.hive.convertMetastoreOrc",true)
                 .enableHiveSupport() //打开hive支持功能，可以与hive共享catalog
                 .getOrCreate()
         //println("==============" + conf.get("spark.sql.hive.convertMetastoreOrc"))
@@ -51,15 +50,16 @@ object StructuredStreamingFromKafka2Hive {
                         .map(array => (array(0)+array(1)+array(2),array(0),array(1),array(2),array(3),
                 if(array(4).isInstanceOf[Int]) array(4).toInt else 99,array(5),array(6),array(7),array(8),array(2).substring(0,4),array(2).substring(4,6),array(2).substring(6,8))) //将其转化成为元组，为了方便下一步赋予schema
                         .toDF("id","client_ip","domain","time","target_ip","rcode","query_type","authority_record","add_msg","dns_ip","year","month","day") //给裸数据添加字段名
-        spark.sparkContext.broadcast()
+
         ds.printSchema() //打印schema，确认没有问题
+        spark.sql("show databases;").show()
 
         val query = ds.writeStream
             .outputMode(OutputMode.Append())  //指定数据的写入方式
                 .format("orc")  //指定外部输出的文件存储格式
                 .option("format", "append")
                 .trigger(Trigger.ProcessingTime(10,TimeUnit.SECONDS))/**每60秒执行一次，不指定就是as fast as possible*/
-                .option("checkpointLocation","hdfs://192.168.211.106:8020/tmp/offset/test/StructuredStreamingFromKafka2Hive") /**用来保存offset，用该目录来绑定对应的offset，如果该目录发生改变则程序运行的id会发生变化，类比group.id的变化，写hive的时候一定不要轻易变动*/
+                .option("checkpointLocation","hdfs://192.168.211.106:8020/tmp/offset/test/StructuredStreamingFromKafka2Hive01") /**用来保存offset，用该目录来绑定对应的offset，如果该目录发生改变则程序运行的id会发生变化，类比group.id的变化，写hive的时候一定不要轻易变动*/
                 .partitionBy("year","month","day")//提供分区字段
                 .toTable("test.test")//写入hive表
         query.awaitTermination()
