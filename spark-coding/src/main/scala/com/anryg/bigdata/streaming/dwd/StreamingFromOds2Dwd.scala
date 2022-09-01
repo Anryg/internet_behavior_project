@@ -22,14 +22,14 @@ object StreamingFromOds2Dwd  extends StreamingProcessHelper[Any]{
                 .enableHiveSupport() //打开hive支持功能，可以与hive共享catalog
                 .getOrCreate()
 
-        clickProcess(spark,"dwd.dwd_internetlog_detail")
+        clickProcess(spark,"ods.ods_kafka_internetlog","dwd.dwd_internetlog_detail")
     }
 
     /**
       *@DESC: 流方式读取hive数据源
       * */
-    def readHive2DF(sparkSession: SparkSession, tableName:String): DataFrame ={
-        sparkSession.readStream.table(tableName)
+    def readHive2DF(sparkSession: SparkSession, sourceTable:String): DataFrame ={
+        sparkSession.readStream.table(sourceTable)
     }
 
     /**
@@ -74,10 +74,10 @@ object StreamingFromOds2Dwd  extends StreamingProcessHelper[Any]{
     /**
       * @DESC: 将所有数据步骤串起来
       * */
-    def clickProcess(sparkSession: SparkSession,tableName:String): Unit ={
-        val rawDF = readHive2DF(sparkSession, tableName)
-        val targetDS = handleData(sparkSession, rawDF, tableName)
-        sinkData(targetDS,tableName).awaitTermination()
+    def clickProcess(sparkSession: SparkSession,sourceTable:String, sinkTable:String): Unit ={
+        val rawDF = readHive2DF(sparkSession, sourceTable)
+        val targetDS = handleData(sparkSession, rawDF, sourceTable)
+        sinkData(targetDS, sinkTable).awaitTermination()
     }
 
 }
