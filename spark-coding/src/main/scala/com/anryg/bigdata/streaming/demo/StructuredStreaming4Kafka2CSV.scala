@@ -1,11 +1,10 @@
-package com.anryg.bigdata.streaming
-
+package com.anryg.bigdata.streaming.demo;
 import java.util.concurrent.TimeUnit
 
+import com.alibaba.fastjson.JSON
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
-
 /**
   * @DESC:  对接实时上网的数据源到HDFS的CSV文件中
   * @Auther: Anryg

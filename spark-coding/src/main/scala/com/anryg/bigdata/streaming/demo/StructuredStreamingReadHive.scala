@@ -1,11 +1,8 @@
-package com.anryg.bigdata.streaming
+package com.anryg.bigdata.streaming.demo;
 
-import java.util.concurrent.TimeUnit
-
-import com.alibaba.fastjson.JSON
+import org.apache.log4j.{Level, Logger}
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 
 /**
   * @DESC:  读取通过streaming写入hive动态分区表的数据
@@ -15,6 +12,7 @@ import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 object StructuredStreamingReadHive {
 
     def main(args: Array[String]): Unit = {
+        Logger.getLogger("org.apache.spark").setLevel(Level.WARN)
         val conf = new SparkConf()
                 .setAppName("StructuredStreamingReadHive")
                 .setMaster("local[*]")//本地运行模式，如果提交集群，注释掉这行
@@ -24,12 +22,12 @@ object StructuredStreamingReadHive {
                 .enableHiveSupport() //打开hive支持功能，可以与hive共享catalog
                 .getOrCreate()
 
-         val rawDF = spark.readStream
-                 .table("test.test")
+         spark.readStream
+                 .table("ods.ods_kafka_internetlog1")
                  .select("client_ip")
                  .writeStream
                  .format("console")
-                 .option("checkpointLocation","hdfs://192.168.211.106:8020/tmp/offset/test/StructuredStreamingReadHive")
+                 .option("checkpointLocation","hdfs://192.168.211.106:8020/tmp/offset/test/StructuredStreamingReadHive1")
                  .start().awaitTermination()
 
     }

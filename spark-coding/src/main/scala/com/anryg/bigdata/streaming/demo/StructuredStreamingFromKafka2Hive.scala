@@ -1,12 +1,12 @@
-package com.anryg.bigdata.streaming
+package com.anryg.bigdata.streaming.demo
 
 import java.util.concurrent.TimeUnit
 
 import com.alibaba.fastjson.JSON
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.streaming.{OutputMode, Trigger}
+;
 
 /**
   * @DESC:  从kafka读取上网数据,写入hive动态分区表
@@ -24,7 +24,6 @@ object StructuredStreamingFromKafka2Hive {
                 .config("spark.datasource.hive.warehouse.metastoreUri","thrift://hdp01.pcl-test.com:9083")
                 .enableHiveSupport() //打开hive支持功能，可以与hive共享catalog
                 .getOrCreate()
-        //println("==============" + conf.get("spark.sql.hive.convertMetastoreOrc"))
 
          val rawDF = spark.readStream
             .format("kafka") //确定数据源的来源格式
