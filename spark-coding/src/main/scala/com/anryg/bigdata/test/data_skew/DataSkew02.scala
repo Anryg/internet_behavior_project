@@ -79,13 +79,13 @@ object DataSkew02 {
                 (targetIP,clientIPMap)//彻底将盐去掉
             }
             else kv
-        }).reduceByKey((map1,map2) => { /**合并2个map中的元素，key相同则value值相加*/
+        }).reduceByKey(new MyPartitioner(4), (map1,map2) => { /**合并2个map中的元素，key相同则value值相加*/
             val map3 = new util.HashMap[String,Int](map1)
             map2.forEach((key,value) => {
                 map3.merge(key, value, (v1,v2) => v1 + v2)
             })
             map3
-        },4)//调整分区数量
+        })//调整分区数量
 
         finalRDD.saveAsTextFile(args(1))
     }

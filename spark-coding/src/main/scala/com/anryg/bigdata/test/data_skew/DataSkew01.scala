@@ -15,14 +15,13 @@ object DataSkew01 {
         val conf = new SparkConf().setAppName("DataSkewTest01")/*.setMaster("local[*]")*/
         val spark = new SparkContext(conf)
 
-        val rawRDD = spark.textFile(args(0))
+        val rawRDD = spark.textFile(args(0))//读取数据源
 
         val filteredRDD = rawRDD.filter(line => { /**筛选满足需要的数据，已到达数据倾斜的目的*/
             val array = line.split(",")
             val target_ip = array(3)
             target_ip.equals("106.38.176.185") || target_ip.equals("106.38.176.117") || target_ip.equals("106.38.176.118") || target_ip.equals("106.38.176.116")
         })
-
 
         val reducedRDD = filteredRDD.map(line => {/**根据目的ip进行汇总，将访问同一个目的ip的所有客户端ip进行汇总*/
             val array = line.split(",")
@@ -31,8 +30,7 @@ object DataSkew01 {
             val index = client_ip.lastIndexOf(".")
             val subClientIP = client_ip.substring(0, index) //为了让后续聚合后的value数据量尽可能的少，只取ip的前段部分
             (target_ip,Array(subClientIP))
-        }).reduceByKey(_++_,4)//将Array中的元素进行合并
-
+        }).reduceByKey(new MyPartitioner(4), _++_)//将Array中的元素进行合并
 
         val targetRDD = reducedRDD.map(kv => {/**将访问同一个目的ip的客户端，再次根据客户端ip进行进一步统计*/
             val map = new util.HashMap[String,Int]()
@@ -48,7 +46,6 @@ object DataSkew01 {
             (target_ip,map)
         })
 
-        targetRDD.foreach(println(_))
         targetRDD.saveAsTextFile("/tmp/DataSkew01") //结果数据保存目录
     }
 }
