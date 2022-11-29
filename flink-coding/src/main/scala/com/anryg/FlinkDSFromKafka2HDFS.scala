@@ -8,6 +8,8 @@ import org.apache.flink.configuration.MemorySize
 import org.apache.flink.connector.kafka.source.KafkaSource
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer
 import org.apache.flink.core.fs.Path
+import org.apache.flink.runtime.state.CheckpointStorage
+import org.apache.flink.streaming.api.CheckpointingMode
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -20,8 +22,14 @@ import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
   */
 object FlinkDSFromKafka2HDFS {
 
+    private final val hdfsPrefix = "hdfs://192.168.211.106:8020"
+
     def main(args: Array[String]): Unit = {
-        val env = StreamExecutionEnvironment.getExecutionEnvironment //获取流任务的环境变量
+        //获取流任务的环境变量
+        val env = StreamExecutionEnvironment.getExecutionEnvironment
+                .enableCheckpointing(3000, CheckpointingMode.EXACTLY_ONCE) //打开checkpoint功能
+
+        env.getCheckpointConfig.setCheckpointStorage(hdfsPrefix + "/tmp/flink_checkpoint/FlinkDSFromKafka2HDFS") //设置checkpoint的hdfs目录
 
         val kafkaSource = KafkaSource.builder()  //获取kafka数据源
                 .setBootstrapServers("192.168.211.107:6667")
@@ -39,14 +47,14 @@ object FlinkDSFromKafka2HDFS {
         }).filter(_.length == 9).map(array => (array(0),array(1),array(2),array(3),array(4),array(5),array(6),array(7),array(8)))
 
         /**基于flink1.14之后新的，文件系统的sink策略，跟官网提供的不一致，有坑*/
-        val hdfsSink2 = StreamingFileSink.forRowFormat(new Path("hdfs://192.168.211.106:8020/tmp/flink_sink2"),
+        val hdfsSink2 = StreamingFileSink.forRowFormat(new Path(hdfsPrefix + "/tmp/flink_sink3"),
             new SimpleStringEncoder[(String,String,String,String,String,String,String,String,String)]("UTF-8"))
                 //.withBucketAssigner(new DateTimeBucketAssigner) /**默认基于时间分配器*/
                 .withRollingPolicy( //设置文件的滚动策略，也就是分文件策略，也可以同时设置文件的命名规则，这里暂时用默认
             DefaultRollingPolicy.builder()
                     .withRolloverInterval(Duration.ofSeconds(300)) //文件滚动间隔，设为5分钟，即每5分钟生成一个新文件
                     .withInactivityInterval(Duration.ofSeconds(20)) //空闲间隔时间，也就是当前文件有多久没有写入数据，则进行滚动
-                    .withMaxPartSize(MemorySize.ofMebiBytes(500)) //单个文件的最大文件大小，设置为500MB
+                    .withMaxPartSize(MemorySize.ofMebiBytes(800)) //单个文件的最大文件大小，设置为500MB
                     .build()).build()
 
         targetDS.addSink(hdfsSink2) //目标DataStream添加sink策略
