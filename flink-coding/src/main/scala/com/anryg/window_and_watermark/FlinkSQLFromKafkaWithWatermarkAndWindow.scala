@@ -17,7 +17,7 @@ object FlinkSQLFromKafkaWithWatermarkAndWindow {
         val config = new Configuration() //设置checkpoint
         config.setString("execution.checkpointing.interval","10000")
         config.setString("state.backend", "filesystem")
-        config.setString("state.checkpoints.dir","hdfs://192.168.211.106:8020/tmp/checkpoint/FlinkTBFromKafkaWithWatermarkAndWindow")
+        config.setString("state.checkpoints.dir","hdfs://192.168.211.106:8020/tmp/checkpoint/FlinkSQLFromKafkaWithWatermarkAndWindow")
 
         streamingSetting.getConfiguration.addAll(config)
 
@@ -26,23 +26,23 @@ object FlinkSQLFromKafkaWithWatermarkAndWindow {
         tableEnv.executeSql(
             """
               |Create table kafkaTable(
-              |`client_ip` STRING,
-              |`domain` STRING,
+              |client_ip STRING,
+              |domain STRING,
               |`time` STRING,
-              |`process_time` TIMESTAMP(3) METADATA FROM 'timestamp', //获取kafka中元数据的时间
-              |`target_ip` STRING,
-              |`rcode` STRING,
-              |`query_type` STRING,
-              |`authority_record` STRING,
-              |`add_msg` STRING,
-              |`dns_ip` STRING,
-              |watermark for process_time as process_time - interval '10' second  //设置watermark，确定watermark字段
+              |target_ip STRING,
+              |rcode STRING,
+              |query_type STRING,
+              |authority_record STRING,
+              |add_msg STRING,
+              |dns_ip STRING,
+              |event_time AS to_timestamp(`time`, 'yyyyMMddHHmmss'), //设置事件时间为实际数据的产生时间，注意time这个字段必须要用``符合括起来
+              |watermark for event_time as event_time - interval '10' second  //设置watermark，确定watermark字段
               |)
               |with(
               |'connector' = 'kafka',
               |'topic' = 'qianxin',
               |'properties.bootstrap.servers' = '192.168.211.107:6667',
-              |'properties.group.id' = 'FlinkTBFromKafkaWithWatermarkAndWindow',
+              |'properties.group.id' = 'FlinkSQLFromKafkaWithWatermarkAndWindow',
               |'scan.startup.mode' = 'latest-offset',
               |'value.format'='csv',                                 //确定数据源为文本格式
               |'value.csv.field-delimiter'='|'                      //确定文本数据源的分隔符
@@ -53,19 +53,19 @@ object FlinkSQLFromKafkaWithWatermarkAndWindow {
             """
               |SELECT
               |window_start,
-              //|window_end,
+              |window_end,
               |client_ip,
               |count(client_ip) as ip_count
               |FROM TABLE(
               |HOP(                       //确定window策略
               |TABLE kafkaTable,
-              |DESCRIPTOR(process_time),
+              |DESCRIPTOR(event_time),
               |INTERVAL '30' SECONDS,   //确定滑动周期
               |INTERVAL '2' MINUTES)    //确定窗口时间间隔
               |)
               |GROUP BY
               |window_start,
-              //|window_end,
+              |window_end,
               |client_ip
               |ORDER BY ip_count
               |DESC
