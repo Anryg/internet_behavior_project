@@ -69,6 +69,7 @@
                 </exclusion>
             </exclusions>
         </dependency>
+
         <!--DataStream转Table-->
         <dependency>
             <groupId>org.apache.flink</groupId>
