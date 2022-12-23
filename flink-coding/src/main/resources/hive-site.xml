@@ -751,7 +751,7 @@
     </property>
     
     <property>
-      <name>hive.strict.managed.tables</name>
+      <name>hive.strict.managed.tables</name> <!---->
       <value>true</value>
     </property>
     
