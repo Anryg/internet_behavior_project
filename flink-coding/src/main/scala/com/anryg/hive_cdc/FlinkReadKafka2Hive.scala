@@ -128,4 +128,5 @@ object FlinkReadKafka2Hive {
               |FROM test.kafkaTable;
             """.stripMargin)
     }
+
 }
