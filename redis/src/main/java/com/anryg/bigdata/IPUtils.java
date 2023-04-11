@@ -3,13 +3,61 @@ package com.anryg.bigdata;
 //import com.googlecode.ipv6.IPv6Network;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import redis.clients.jedis.Jedis;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * @DESC: 提供对IP地址数据相关的操作
+ * @Author Anryg
+ * */
 
 public class IPUtils {
     private static Logger logger = LoggerFactory.getLogger(IPUtils.class);
+
+
+    /**
+     * @DESC: 将本地ip.merge.txt文件中的IP地址导入到redis zset中
+     * @param filePath : IP地址与地理位置关系文件
+     * @param dbNo : redis的数据库名
+     * */
+    public static void ipCountryImport(String filePath, int dbNo) throws Exception {
+        FileInputStream inputStream = new FileInputStream(filePath);
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+        String line = null; /*读取文件中的每一行*/
+        HashMap<String,Double> map = new HashMap(1024,1); //key为数据体，value为ip范围的结束ip地址
+        int i = 0;
+        while((line=bufferedReader.readLine()) != null){
+            String[] args=line.split("\\|");
+            String ipStart=args[0];
+            String ipEnd=args[1];
+            //Long ipStartLong= IPUtils.ip2Long(ipStart);
+            Long ipEndLong= IPUtils.ip2Long(ipEnd); //将每条IP地址范围的结束IP地址，转换为long类型的数值
+            String country = args[2];  //获取国家信息
+            String province = args[4]; //或者省份信息
+            String city = args[5];  //获取城市信息
+            String operator = args[6]; //获取运营商信息
+            StringBuilder rowBuffer  = new StringBuilder(11); //用来存放组装后的IP地址与地理位置信息
+            rowBuffer.append(ipStart).append("-").append(ipEnd).append("-").append(country).append("-")
+                    .append(province).append("-").append(city).append("-").append(operator);
+            map.put(rowBuffer.toString(),ipEndLong.doubleValue());
+            ++i;
+            if (i == 1024) {/**每1024个为一批*/
+                toRedis(RedisClientUtils.getSingleRedisClient(),map, dbNo,"ipAndAddr");
+                map.clear();
+                i = 0;
+            }
+        }
+        if (map.size() > 0) toRedis(RedisClientUtils.getSingleRedisClient(),map, dbNo,"ipAndAddr");
+    }
+
     /**
      * @DESC: 将IP转为10进制
      * */
@@ -144,6 +192,20 @@ public class IPUtils {
         str = str.substring(0, str.length() - 1);
 
         return str.replaceFirst("(^|:)(0+(:|$)){2,8}", "::");
+    }
+
+
+    /**
+     * @DESC: 批量方式写入Redis
+     * */
+    private static  Long toRedis(Jedis jedis, Map<String,Double> map, int dbno, String key) {
+        try {
+            jedis.select(dbno);
+            return jedis.zadd(key,map);
+        } finally {
+            RedisClientUtils.returnResource(jedis);
+        }
+
     }
 
 
